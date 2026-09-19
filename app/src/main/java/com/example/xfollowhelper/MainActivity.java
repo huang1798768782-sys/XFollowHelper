@@ -30,13 +30,13 @@ public class MainActivity extends Activity {
         root.setGravity(Gravity.TOP);
 
         TextView title = new TextView(this);
-        title.setText("X 单次关注助手");
+        title.setText("X 连续使用关注助手");
         title.setTextSize(24);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title, matchWrap());
 
         TextView info = new TextView(this);
-        info.setText("输入 X 用户名或个人主页链接。点击后会打开官方 X App，并在 60 秒内只尝试点击一次“关注 / Follow”。\n\n首次使用请先开启本应用的无障碍服务。不会读取或保存你的 X 密码。");
+        info.setText("输入 X 用户名或个人主页链接。每次点击执行后，会打开官方 X App，并保持本次授权直到成功点击一次“关注 / Follow”。\n\n成功后本次授权立即解除；下一次关注只需回到本应用再次点击执行。不会读取或保存你的 X 密码。");
         info.setTextSize(16);
         LinearLayout.LayoutParams infoLp = matchWrap();
         infoLp.topMargin = dp(14);
@@ -58,7 +58,7 @@ public class MainActivity extends Activity {
         root.addView(access, btnLp1);
 
         Button follow = new Button(this);
-        follow.setText("2. 打开 X 并点击一次关注");
+        follow.setText("2. 执行一次关注");
         follow.setOnClickListener(v -> {
             String raw = input.getText().toString().trim();
             String username = normalizeUsername(raw);
@@ -66,13 +66,19 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "请输入用户名或 X 主页链接", Toast.LENGTH_SHORT).show();
                 return;
             }
-            long until = System.currentTimeMillis() + 60_000L;
-            getSharedPreferences(PREFS, MODE_PRIVATE).edit().putLong(KEY_ARMED_UNTIL, until).apply();
+
+            // No short timeout: remain armed until one successful click.
+            getSharedPreferences(PREFS, MODE_PRIVATE)
+                    .edit()
+                    .putLong(KEY_ARMED_UNTIL, Long.MAX_VALUE)
+                    .apply();
+
             Uri uri = Uri.parse("https://x.com/" + username);
             Intent intent = new Intent(Intent.ACTION_VIEW, uri);
             try {
                 startActivity(intent);
             } catch (Exception e) {
+                getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(KEY_ARMED_UNTIL).apply();
                 Toast.makeText(this, "无法打开 X，请确认已安装 X App", Toast.LENGTH_LONG).show();
             }
         });
@@ -80,8 +86,18 @@ public class MainActivity extends Activity {
         btnLp2.topMargin = dp(8);
         root.addView(follow, btnLp2);
 
+        Button cancel = new Button(this);
+        cancel.setText("取消当前授权");
+        cancel.setOnClickListener(v -> {
+            getSharedPreferences(PREFS, MODE_PRIVATE).edit().remove(KEY_ARMED_UNTIL).apply();
+            Toast.makeText(this, "已取消当前授权", Toast.LENGTH_SHORT).show();
+        });
+        LinearLayout.LayoutParams cancelLp = matchWrap();
+        cancelLp.topMargin = dp(8);
+        root.addView(cancel, cancelLp);
+
         TextView note = new TextView(this);
-        note.setText("提示：如果页面尚未加载完，辅助服务会在有效期内等待页面变化。成功点击一次后会立即解除本次授权。");
+        note.setText("提示：本次授权不会因 60 秒超时而失效。成功关注一次后会自动解除；需要下一次关注时，再回到本应用点“执行一次关注”。");
         note.setTextSize(14);
         LinearLayout.LayoutParams noteLp = matchWrap();
         noteLp.topMargin = dp(16);
@@ -117,6 +133,9 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout.LayoutParams matchWrap() {
-        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        return new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
     }
 }
