@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">X 单次关注助手</string>
+    <string name="service_name">X 单次关注辅助服务</string>
+    <string name="service_desc">仅在你从本应用主动启动一次关注后，在短时间内尝试点击一次 X 的“关注/Follow”按钮。</string>
+</resources>
